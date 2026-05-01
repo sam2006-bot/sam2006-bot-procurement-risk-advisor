@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>采购审批风险建议</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+
+<body>
+  <div class="app-shell">
+    <header class="topbar glass">
+      <div>
+        <p class="eyebrow">Procurement Risk Advisor</p>
+        <h1>采购审批风险建议</h1>
+      </div>
+      <div class="status-pill" id="healthStatus">读取历史库...</div>
+    </header>
+
+    <main class="workspace">
+      <section class="control-panel glass">
+        <form id="uploadForm" class="stack">
+          <label class="file-drop" for="fileInput">
+            <span class="file-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" role="img">
+                <path d="M12 3v12m0-12 4.5 4.5M12 3 7.5 7.5" />
+                <path d="M4.5 15.5v2.75A2.25 2.25 0 0 0 6.75 20.5h10.5a2.25 2.25 0 0 0 2.25-2.25V15.5" />
+              </svg>
+            </span>
+            <span class="file-title" id="fileLabel">选择待审批 Excel</span>
+            <span class="file-meta">标准报表 .xlsx</span>
+            <input id="fileInput" name="file" type="file" accept=".xlsx" required />
+          </label>
+
+          <div class="field-grid">
+            <label>
+              <span>OpenRouter API Key</span>
+              <input id="apiKeyInput" name="apiKey" type="password" placeholder="sk-or-..." autocomplete="off" />
+            </label>
+            <label>
+              <span>模型</span>
+              <input id="modelInput" name="model" type="text" value="openai/gpt-4.1-mini" />
+            </label>
+          </div>
+
+          <button class="primary-button" type="submit">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m5 12 4 4L19 6" />
+            </svg>
+            开始分析
+          </button>
+        </form>
+
+        <div class="note">
+          API Key 只用于本次后端请求，不会写入本地文件。
+        </div>
+      </section>
+
+      <section class="result-panel glass" id="emptyState">
+        <div class="empty-copy">
+          <p class="eyebrow">待分析</p>
+          <h2>上传采购明细后生成风险判断</h2>
+          <p>等待待审批明细。</p>
+        </div>
+      </section>
+
+      <section class="result-panel glass hidden" id="resultPanel">
+        <div class="risk-header">
+          <div class="risk-meter" id="riskMeter">
+            <span id="finalRisk">0</span>
+            <small>最终风险</small>
+          </div>
+          <div>
+            <p class="eyebrow" id="riskFormula">程序自动匹配 20% + AI 意见 80%</p>
+            <h2 id="riskTitle">分析结果</h2>
+            <div class="metric-row" id="metricRow"></div>
+          </div>
+        </div>
+
+        <div class="ai-box" id="aiBox"></div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>采购事项</th>
+                <th>程序风险</th>
+                <th>风险提示</th>
+                <th>最佳历史匹配</th>
+                <th>金额趋势</th>
+                <th>代理提醒</th>
+              </tr>
+            </thead>
+            <tbody id="resultRows"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <template id="chipTemplate">
+    <span class="chip"></span>
+  </template>
+
+  <script src="/app.js"></script>
+</body>
+
+</html>
