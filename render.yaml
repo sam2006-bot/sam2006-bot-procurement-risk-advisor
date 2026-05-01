@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: procurement-risk-advisor
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: OPENROUTER_MODEL
+        value: openai/gpt-4.1-mini
+      - key: OPENROUTER_API_KEY
+        sync: false

@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 const express = require('express');
 const multer = require('multer');
 const { loadWorkbookFile, parseWorkbookBuffer } = require('./src/excel');
@@ -7,6 +8,7 @@ const { analyzeProcurements } = require('./src/matcher');
 const { analyzeWithOpenRouter, composeFinalRisk } = require('./src/openrouter');
 
 const PORT = Number(process.env.PORT || 4173);
+const HOST = process.env.HOST || (process.env.RENDER || process.env.NODE_ENV === 'production' ? '0.0.0.0' : '127.0.0.1');
 const DEFAULT_HISTORY_WORKBOOK = process.env.HISTORY_WORKBOOK || '无源全流程报表-安徽V2.xlsx';
 const DEFAULT_MODEL = process.env.OPENROUTER_MODEL || 'openai/gpt-4.1-mini';
 
@@ -18,16 +20,47 @@ const upload = multer({
   }
 });
 
-let historyCache = null;
-let historyCachePath = null;
+let bundledHistoryCache = null;
+let bundledHistoryCachePath = null;
 
-async function getHistory() {
+function historyFilePath() {
+  return path.resolve(process.cwd(), DEFAULT_HISTORY_WORKBOOK);
+}
+
+async function getBundledHistory() {
   const workbookPath = path.resolve(process.cwd(), DEFAULT_HISTORY_WORKBOOK);
-  if (!historyCache || historyCachePath !== workbookPath) {
-    historyCache = await loadWorkbookFile(workbookPath);
-    historyCachePath = workbookPath;
+  if (!fs.existsSync(workbookPath)) {
+    return null;
   }
-  return historyCache;
+  if (!bundledHistoryCache || bundledHistoryCachePath !== workbookPath) {
+    bundledHistoryCache = await loadWorkbookFile(workbookPath);
+    bundledHistoryCachePath = workbookPath;
+  }
+  return bundledHistoryCache;
+}
+
+async function getHistoryForRequest(request) {
+  const uploadedHistory = request.files?.historyFile?.[0];
+  if (uploadedHistory) {
+    const historyFileName = decodeUploadFileName(uploadedHistory.originalname);
+    const history = await parseWorkbookBuffer(uploadedHistory.buffer, historyFileName);
+    return {
+      source: 'uploaded',
+      fileName: historyFileName,
+      workbook: history
+    };
+  }
+
+  const bundledHistory = await getBundledHistory();
+  if (bundledHistory) {
+    return {
+      source: 'server',
+      fileName: DEFAULT_HISTORY_WORKBOOK,
+      workbook: bundledHistory
+    };
+  }
+
+  throw new Error('未找到历史参考表。请上传历史参考 Excel，或在服务器配置 HISTORY_WORKBOOK。');
 }
 
 app.use(express.json({ limit: '1mb' }));
@@ -35,12 +68,16 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/api/health', async (_request, response) => {
   try {
-    const history = await getHistory();
+    const history = await getBundledHistory();
     response.json({
       ok: true,
+      host: HOST,
+      renderReady: true,
       historyWorkbook: DEFAULT_HISTORY_WORKBOOK,
-      historyRows: history.rowCount,
-      historySheet: history.sheetName,
+      historyPath: historyFilePath(),
+      historyAvailable: Boolean(history),
+      historyRows: history?.rowCount || 0,
+      historySheet: history?.sheetName || '',
       defaultModel: DEFAULT_MODEL
     });
   } catch (error) {
@@ -51,16 +88,21 @@ app.get('/api/health', async (_request, response) => {
   }
 });
 
-app.post('/api/analyze', upload.single('file'), async (request, response) => {
+app.post('/api/analyze', upload.fields([
+  { name: 'file', maxCount: 1 },
+  { name: 'historyFile', maxCount: 1 }
+]), async (request, response) => {
   try {
-    if (!request.file) {
+    const currentFile = request.files?.file?.[0];
+    if (!currentFile) {
       response.status(400).json({ error: '请上传 Excel 文件。' });
       return;
     }
 
-    const originalFileName = decodeUploadFileName(request.file.originalname);
-    const history = await getHistory();
-    const uploaded = await parseWorkbookBuffer(request.file.buffer, originalFileName);
+    const originalFileName = decodeUploadFileName(currentFile.originalname);
+    const historyInfo = await getHistoryForRequest(request);
+    const history = historyInfo.workbook;
+    const uploaded = await parseWorkbookBuffer(currentFile.buffer, originalFileName);
 
     if (!uploaded.records.length) {
       response.status(400).json({ error: '上传文件没有可分析的明细行。' });
@@ -81,7 +123,8 @@ app.post('/api/analyze', upload.single('file'), async (request, response) => {
         mappedFields: uploaded.mappedFields
       },
       history: {
-        fileName: DEFAULT_HISTORY_WORKBOOK,
+        source: historyInfo.source,
+        fileName: historyInfo.fileName,
         sheetName: history.sheetName,
         rows: history.rowCount
       },
@@ -107,6 +150,6 @@ app.use((error, _request, response, _next) => {
   response.status(500).json({ error: error.message });
 });
 
-app.listen(PORT, '127.0.0.1', () => {
-  console.log(`Procurement risk advisor running at http://127.0.0.1:${PORT}`);
+app.listen(PORT, HOST, () => {
+  console.log(`Procurement risk advisor running at http://${HOST}:${PORT}`);
 });

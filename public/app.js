@@ -1,6 +1,9 @@
 const form = document.querySelector('#uploadForm');
 const fileInput = document.querySelector('#fileInput');
+const historyInput = document.querySelector('#historyInput');
 const fileLabel = document.querySelector('#fileLabel');
+const historyLabel = document.querySelector('#historyLabel');
+const historyMeta = document.querySelector('#historyMeta');
 const healthStatus = document.querySelector('#healthStatus');
 const emptyState = document.querySelector('#emptyState');
 const resultPanel = document.querySelector('#resultPanel');
@@ -12,6 +15,7 @@ const metricRow = document.querySelector('#metricRow');
 const aiBox = document.querySelector('#aiBox');
 const resultRows = document.querySelector('#resultRows');
 const submitButton = form.querySelector('button[type="submit"]');
+let serverHistoryAvailable = false;
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -44,6 +48,7 @@ function renderMetrics(data) {
   const items = [
     `上传 ${data.uploaded.rows} 行`,
     `历史 ${data.history.rows} 行`,
+    data.history.source === 'uploaded' ? '历史表：本次上传' : '历史表：服务器',
     `一年内重复 ${data.totals.rowsWithDuplicateRisk} 项`,
     `金额上涨 ${data.totals.rowsWithAmountIncrease} 项`,
     `代理提醒 ${data.totals.rowsWithAgencyReminder} 项`,
@@ -147,12 +152,21 @@ async function loadHealth() {
     const response = await fetch('/api/health');
     const data = await response.json();
     if (!response.ok || !data.ok) throw new Error(data.error || '历史库不可用');
-    healthStatus.textContent = `历史库 ${data.historyRows} 行 · ${data.historySheet}`;
+    serverHistoryAvailable = Boolean(data.historyAvailable);
+    healthStatus.textContent = serverHistoryAvailable
+      ? `历史库 ${data.historyRows} 行 · ${data.historySheet}`
+      : '等待上传历史库';
+    historyMeta.textContent = serverHistoryAvailable ? '可使用服务器历史库' : '公网部署需上传';
     document.querySelector('#modelInput').value = data.defaultModel;
   } catch (error) {
     healthStatus.textContent = error.message;
+    historyMeta.textContent = '请上传历史参考表';
   }
 }
+
+historyInput.addEventListener('change', () => {
+  historyLabel.textContent = historyInput.files[0]?.name || '选择历史参考 Excel';
+});
 
 fileInput.addEventListener('change', () => {
   fileLabel.textContent = fileInput.files[0]?.name || '选择待审批 Excel';
@@ -161,6 +175,18 @@ fileInput.addEventListener('change', () => {
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
   if (!fileInput.files[0]) return;
+  if (!serverHistoryAvailable && !historyInput.files[0]) {
+    emptyState.classList.remove('hidden');
+    resultPanel.classList.add('hidden');
+    emptyState.innerHTML = `
+      <div class="empty-copy">
+        <p class="eyebrow">缺少历史库</p>
+        <h2>请先上传历史参考 Excel</h2>
+        <p>公网部署不会内置公司历史表。</p>
+      </div>
+    `;
+    return;
+  }
 
   const formData = new FormData(form);
   submitButton.disabled = true;

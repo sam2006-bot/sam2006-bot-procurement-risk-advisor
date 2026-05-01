@@ -133,11 +133,17 @@ h2 {
   gap: 14px;
 }
 
+.upload-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
 .file-drop {
   display: grid;
   place-items: center;
-  min-height: 232px;
-  padding: 24px;
+  min-height: 186px;
+  padding: 18px;
   border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.74);
   background: rgba(255, 255, 255, 0.42);
@@ -162,10 +168,10 @@ h2 {
 .file-icon {
   display: grid;
   place-items: center;
-  width: 64px;
-  height: 64px;
-  margin-bottom: 18px;
-  border-radius: 20px;
+  width: 54px;
+  height: 54px;
+  margin-bottom: 14px;
+  border-radius: 18px;
   background: rgba(47, 111, 237, 0.12);
   color: var(--blue);
 }
@@ -181,8 +187,8 @@ svg {
 }
 
 .file-icon svg {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
 }
 
 .file-title {
@@ -502,6 +508,10 @@ td strong {
 
   .workspace {
     display: grid;
+  }
+
+  .upload-grid {
+    grid-template-columns: 1fr;
   }
 
   .risk-meter {
