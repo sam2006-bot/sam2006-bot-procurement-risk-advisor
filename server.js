@@ -78,6 +78,7 @@ app.get('/api/health', async (_request, response) => {
       historyAvailable: Boolean(history),
       historyRows: history?.rowCount || 0,
       historySheet: history?.sheetName || '',
+      aiConfigured: Boolean(process.env.OPENROUTER_API_KEY),
       defaultModel: DEFAULT_MODEL
     });
   } catch (error) {
@@ -110,8 +111,8 @@ app.post('/api/analyze', upload.fields([
     }
 
     const matchResult = analyzeProcurements(uploaded.records, history.records);
-    const apiKey = request.body.apiKey || process.env.OPENROUTER_API_KEY || '';
-    const model = request.body.model || DEFAULT_MODEL;
+    const apiKey = process.env.OPENROUTER_API_KEY || '';
+    const model = DEFAULT_MODEL;
     const ai = await analyzeWithOpenRouter({ apiKey, model, matchResult });
     const finalRisk = composeFinalRisk(matchResult.programRisk, ai.riskScore, ai.available);
 

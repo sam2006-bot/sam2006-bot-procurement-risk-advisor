@@ -157,7 +157,6 @@ async function loadHealth() {
       ? `历史库 ${data.historyRows} 行 · ${data.historySheet}`
       : '等待上传历史库';
     historyMeta.textContent = serverHistoryAvailable ? '可使用服务器历史库' : '公网部署需上传';
-    document.querySelector('#modelInput').value = data.defaultModel;
   } catch (error) {
     healthStatus.textContent = error.message;
     historyMeta.textContent = '请上传历史参考表';
@@ -215,7 +214,7 @@ form.addEventListener('submit', async (event) => {
       <div class="empty-copy">
         <p class="eyebrow">分析失败</p>
         <h2>${escapeHtml(error.message)}</h2>
-        <p>请确认文件格式与参考表一致，或检查 OpenRouter Key 和模型名称。</p>
+        <p>请确认文件格式与参考表一致，或检查服务器 AI 环境变量配置。</p>
       </div>
     `;
   } finally {

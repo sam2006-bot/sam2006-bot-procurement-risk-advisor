@@ -47,17 +47,6 @@
             </label>
           </div>
 
-          <div class="field-grid">
-            <label>
-              <span>OpenRouter API Key</span>
-              <input id="apiKeyInput" name="apiKey" type="password" placeholder="sk-or-..." autocomplete="off" />
-            </label>
-            <label>
-              <span>模型</span>
-              <input id="modelInput" name="model" type="text" value="openai/gpt-4.1-mini" />
-            </label>
-          </div>
-
           <button class="primary-button" type="submit">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="m5 12 4 4L19 6" />
@@ -67,7 +56,7 @@
         </form>
 
         <div class="note">
-          API Key 和上传文件只用于本次后端请求，不会写入服务器文件。
+          AI 配置由服务器环境变量管理；上传文件只用于本次分析，不会写入服务器文件。
         </div>
       </section>
 
