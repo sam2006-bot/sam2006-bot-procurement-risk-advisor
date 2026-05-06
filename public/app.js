@@ -57,6 +57,50 @@ function renderMetrics(data) {
   metricRow.innerHTML = items.map(chip).join('');
 }
 
+function criteriaState(criterion) {
+  if (!criterion) return { label: '未知', cls: 'muted' };
+  if (criterion.triggered) return { label: '已触发', cls: 'risk-high' };
+  if (criterion.determinate === false) return { label: '需人工核实', cls: 'risk-mid' };
+  return { label: '未触发', cls: 'risk-low' };
+}
+
+function renderProgramCriteria(rows) {
+  if (!rows?.length) return '';
+  const blocks = rows
+    .map((row) => {
+      const title =
+        row.current.projectName ||
+        row.current.demandName ||
+        row.current.contractName ||
+        row.current.displayName ||
+        '本次采购';
+      const items = [
+        ['一年内重复采购', row.criteria?.duplicateWithinOneYear],
+        ['金额变化', row.criteria?.amountIncrease],
+        ['代理机构/人员', row.criteria?.agencyReminder]
+      ]
+        .map(([label, criterion]) => {
+          const state = criteriaState(criterion);
+          return `
+            <li>
+              <strong>${escapeHtml(label)}</strong>
+              <span class="${state.cls}">${escapeHtml(state.label)}</span>
+              <span class="muted">${escapeHtml(criterion?.reason || '')}</span>
+            </li>
+          `;
+        })
+        .join('');
+      return `
+        <div class="criteria-block">
+          <p class="eyebrow">程序判定 · ${escapeHtml(title)}</p>
+          <ul class="criteria-list">${items}</ul>
+        </div>
+      `;
+    })
+    .join('');
+  return blocks;
+}
+
 function renderAi(data) {
   const status = data.ai.available ? 'AI 审批意见' : '本地匹配意见';
   const findings = data.ai.keyFindings || [];
@@ -64,16 +108,17 @@ function renderAi(data) {
   const error = data.ai.error ? `<p class="muted">调用提示：${escapeHtml(data.ai.error)}</p>` : '';
 
   aiBox.innerHTML = `
+    ${renderProgramCriteria(data.rows)}
     <p class="eyebrow">${escapeHtml(status)}</p>
     <p>${escapeHtml(data.ai.opinion || '暂无意见。')}</p>
     ${
       findings.length
-        ? `<ul class="ai-list">${findings.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`
+        ? `<p class="eyebrow">关键发现</p><ul class="ai-list">${findings.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`
         : ''
     }
     ${
       actions.length
-        ? `<ul class="ai-list">${actions.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`
+        ? `<p class="eyebrow">建议动作</p><ul class="ai-list">${actions.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`
         : ''
     }
     ${error}

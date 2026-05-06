@@ -428,6 +428,49 @@ input:focus {
   color: #344054;
 }
 
+.criteria-block {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+}
+
+.criteria-block .eyebrow {
+  margin: 0 0 6px;
+}
+
+.criteria-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+
+.criteria-list li {
+  display: grid;
+  grid-template-columns: 140px 96px 1fr;
+  gap: 10px;
+  align-items: baseline;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.criteria-list li strong {
+  color: #1f2d3d;
+}
+
+.criteria-list .muted {
+  color: #475467;
+}
+
+@media (max-width: 720px) {
+  .criteria-list li {
+    grid-template-columns: 1fr;
+  }
+}
+
 .table-wrap {
   overflow: auto;
   border-radius: 18px;

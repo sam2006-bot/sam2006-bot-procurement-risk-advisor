@@ -356,6 +356,100 @@ function programRiskForRow({ duplicateMatches, candidates, trend, agencyReminder
   return Math.max(0, Math.min(100, risk));
 }
 
+function rowTitle(row) {
+  return (
+    row.projectName ||
+    row.demandName ||
+    row.contractName ||
+    row.productName ||
+    '历史记录'
+  );
+}
+
+function buildDuplicateCriterion({ currentDate, candidates, duplicateMatches, olderSimilarMatches }) {
+  if (duplicateMatches.length > 0) {
+    const top = duplicateMatches[0];
+    return {
+      triggered: true,
+      determinate: true,
+      reason: `程序匹配到 ${duplicateMatches.length} 项 365 天内的同类历史采购；最相似为「${rowTitle(top.row)}」（${top.historicalDate}），距本次采购 ${Math.round(top.daysApart)} 天。`
+    };
+  }
+
+  if (!candidates.length) {
+    return {
+      triggered: false,
+      determinate: true,
+      reason: '程序未发现明显同类历史采购，无一年内重复风险线索。'
+    };
+  }
+
+  if (!currentDate) {
+    return {
+      triggered: false,
+      determinate: false,
+      reason: '本次采购缺少可解析的审批/方案日期，程序无法按日期判定一年内重复风险，请人工确认。'
+    };
+  }
+
+  const datedCandidate = olderSimilarMatches.find((candidate) => candidate.daysApart !== null) || null;
+  if (datedCandidate) {
+    return {
+      triggered: false,
+      determinate: true,
+      reason: `最相似的历史采购「${rowTitle(datedCandidate.row)}」（${datedCandidate.historicalDate}）距本次采购 ${Math.round(datedCandidate.daysApart)} 天，超过 365 天，未触发一年内重复采购风险。`
+    };
+  }
+
+  const undatedCandidate = candidates[0];
+  return {
+    triggered: false,
+    determinate: false,
+    reason: `最相似的历史采购「${rowTitle(undatedCandidate.row)}」缺少可解析日期，程序无法按日期判定一年内重复风险，请人工确认。`
+  };
+}
+
+function buildAmountIncreaseCriterion(trend) {
+  if (!trend) {
+    return {
+      triggered: false,
+      determinate: false,
+      reason: '程序未识别到可比的同类历史金额。'
+    };
+  }
+  return {
+    triggered: trend.direction === '上涨',
+    determinate: true,
+    reason: trend.message
+  };
+}
+
+function buildAgencyCriterion({ agencyReminders, candidates }) {
+  if (agencyReminders.length > 0) {
+    const list = agencyReminders
+      .slice(0, 3)
+      .map((item) => `${item.agencyName}/${item.agencyPerson}`)
+      .join('、');
+    return {
+      triggered: true,
+      determinate: true,
+      reason: `历史同类采购曾由 ${list} 代理。`
+    };
+  }
+  if (!candidates.length) {
+    return {
+      triggered: false,
+      determinate: true,
+      reason: '程序未发现明显同类历史采购，无代理机构/人员提醒。'
+    };
+  }
+  return {
+    triggered: false,
+    determinate: true,
+    reason: '匹配的历史采购未提供代理机构/人员信息。'
+  };
+}
+
 function analyzeProcurements(currentRows, historyRows) {
   const rows = currentRows.map((current) => {
     const currentDate = rowDate(current);
@@ -385,11 +479,27 @@ function analyzeProcurements(currentRows, historyRows) {
     const agencyReminders = summarizeAgency(candidates);
     const programRisk = programRiskForRow({ duplicateMatches, candidates, trend, agencyReminders });
 
+    const criteria = {
+      duplicateWithinOneYear: buildDuplicateCriterion({
+        currentDate,
+        candidates,
+        duplicateMatches,
+        olderSimilarMatches
+      }),
+      amountIncrease: buildAmountIncreaseCriterion(trend),
+      agencyReminder: buildAgencyCriterion({ agencyReminders, candidates })
+    };
+
     const flags = [];
-    if (duplicateMatches.length) flags.push('一年内疑似重复采购');
-    if (trend?.direction === '上涨') flags.push('同类历史金额上涨');
-    if (agencyReminders.length) flags.push('历史代理机构/人员提醒');
+    if (criteria.duplicateWithinOneYear.triggered) flags.push('一年内疑似重复采购');
+    if (criteria.amountIncrease.triggered) flags.push('同类历史金额上涨');
+    if (criteria.agencyReminder.triggered) flags.push('历史代理机构/人员提醒');
     if (!candidates.length) flags.push('未发现明显同类历史');
+
+    const referenceDate = {
+      current: currentDate ? currentDate.toISOString().slice(0, 10) : null,
+      currentLabel: currentDate ? currentDate.toISOString().slice(0, 10) : '未识别'
+    };
 
     return {
       current,
@@ -400,7 +510,9 @@ function analyzeProcurements(currentRows, historyRows) {
       olderSimilarMatches,
       topMatches: candidates.slice(0, 5),
       trend,
-      agencyReminders
+      agencyReminders,
+      referenceDate,
+      criteria
     };
   });
 
